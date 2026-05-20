@@ -83,6 +83,12 @@ def capture_loop():
 
             print("Command:", command)
 
+
+            lat, lon = get_gps_location()
+
+            print("GPS:", lat, lon)
+
+
             # -----------------------------
             # Draw pothole center
             # -----------------------------
