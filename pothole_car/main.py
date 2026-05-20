@@ -3,24 +3,31 @@ import cv2
 import time
 import threading
 
+from picamera2 import Picamera2
+
 from detector import detect_pothole
 from navigation import decide_action
 from arduino_comm import send_command
 
 app = Flask(__name__)
 
-# --------------------------------
-# Camera setup
-# --------------------------------
-cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
-
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
-cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
-cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-
 FRAME_WIDTH = 320
 FRAME_HEIGHT = 240
+
+# --------------------------------
+# Picamera2 setup
+# --------------------------------
+picam2 = Picamera2()
+
+config = picam2.create_preview_configuration(
+    main={"size": (FRAME_WIDTH, FRAME_HEIGHT)}
+)
+
+picam2.configure(config)
+
+picam2.start()
+
+print("Camera started")
 
 # --------------------------------
 # Shared frame
@@ -38,63 +45,79 @@ def capture_loop():
 
     while True:
 
-        ret, frame = cap.read()
+        try:
 
-        if not ret or frame is None:
+            # Capture frame
+            frame = picam2.capture_array()
 
-            print("Failed to read frame")
-            continue
-
-        frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
-
-        # -----------------------------
-        # Pothole Detection
-        # -----------------------------
-        detected, x, y = detect_pothole(frame)
-
-        # -----------------------------
-        # Navigation Logic
-        # -----------------------------
-        command = decide_action(detected, x, y)
-
-        # -----------------------------
-        # Send command to Arduino
-        # -----------------------------
-        send_command(command)
-
-        print("Command:", command)
-
-        # -----------------------------
-        # Draw pothole center
-        # -----------------------------
-        if detected:
-
-            cv2.circle(
+            # Convert RGB -> BGR
+            frame = cv2.cvtColor(
                 frame,
-                (x, y),
-                5,
-                (0, 0, 255),
-                -1
+                cv2.COLOR_RGB2BGR
             )
 
-        # -----------------------------
-        # Show command text
-        # -----------------------------
-        cv2.putText(
-            frame,
-            f"CMD: {command}",
-            (10, 30),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1,
-            (0, 255, 0),
-            2
-        )
+            # Resize
+            frame = cv2.resize(
+                frame,
+                (FRAME_WIDTH, FRAME_HEIGHT)
+            )
 
-        with lock:
+            # -----------------------------
+            # Pothole Detection
+            # -----------------------------
+            detected, x, y = detect_pothole(frame)
 
-            latest_frame = frame
+            # -----------------------------
+            # Navigation Logic
+            # -----------------------------
+            command = decide_action(
+                detected,
+                x,
+                y
+            )
 
-        time.sleep(0.01)
+            # -----------------------------
+            # Send to Arduino
+            # -----------------------------
+            send_command(command)
+
+            print("Command:", command)
+
+            # -----------------------------
+            # Draw pothole center
+            # -----------------------------
+            if detected:
+
+                cv2.circle(
+                    frame,
+                    (x, y),
+                    5,
+                    (0, 0, 255),
+                    -1
+                )
+
+            # -----------------------------
+            # Display command
+            # -----------------------------
+            cv2.putText(
+                frame,
+                f"CMD: {command}",
+                (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 255, 0),
+                2
+            )
+
+            with lock:
+
+                latest_frame = frame
+
+            time.sleep(0.01)
+
+        except Exception as e:
+
+            print("Camera Error:", e)
 
 # Start capture thread
 threading.Thread(
@@ -103,7 +126,7 @@ threading.Thread(
 ).start()
 
 # --------------------------------
-# MJPEG stream generator
+# MJPEG Stream Generator
 # --------------------------------
 def generate():
 
@@ -113,7 +136,11 @@ def generate():
 
         with lock:
 
-            frame = None if latest_frame is None else latest_frame.copy()
+            frame = (
+                None
+                if latest_frame is None
+                else latest_frame.copy()
+            )
 
         if frame is None:
 
@@ -139,7 +166,7 @@ def generate():
         time.sleep(0.03)
 
 # --------------------------------
-# Flask routes
+# Flask Routes
 # --------------------------------
 @app.route('/')
 
