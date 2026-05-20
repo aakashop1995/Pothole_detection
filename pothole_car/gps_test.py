@@ -1,7 +1,7 @@
 import serial
 import time
 
-PORT = "/dev/ttyS0"
+PORT = "/dev/ttyAMA0"
 
 gps = serial.Serial(PORT, baudrate=9600, timeout=1)
 time.sleep(2)
