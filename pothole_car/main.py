@@ -2,7 +2,7 @@ from flask import Flask, Response
 import cv2
 import time
 import threading
-
+from gps import get_gps_location
 from picamera2 import Picamera2
 
 from detector import detect_pothole
@@ -95,6 +95,12 @@ def capture_loop():
                     (0, 0, 255),
                     -1
                 )
+                 print("Pothole detected")
+
+                 # get GPS only when needed
+                 lat, lon = get_gps_location()
+
+                 print("GPS:", lat, lon)
 
             # -----------------------------
             # Display command
