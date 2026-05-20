@@ -10,7 +10,20 @@ app = Flask(__name__)
 FRAME_WIDTH = 320
 FRAME_HEIGHT = 240
 
-cap = cv2.VideoCapture(0)
+# Camera setup
+cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
+
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
+
+if not cap.isOpened():
+
+    print("Camera failed to open")
+
+else:
+
+    print("Camera started")
+
 
 def generate_frames():
 
@@ -19,7 +32,9 @@ def generate_frames():
         ret, frame = cap.read()
 
         if not ret:
-            break
+
+            print("Failed to read frame")
+            continue
 
         frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
 
@@ -29,16 +44,23 @@ def generate_frames():
         # Navigation decision
         command = decide_action(detected, x, y)
 
-        # Send to Arduino
+        # Send command to Arduino
         send_command(command)
 
         print("Command:", command)
 
-        # Draw pothole center
+        # Draw pothole point
         if detected:
-            cv2.circle(frame, (x, y), 5, (0, 0, 255), -1)
 
-        # Show command on frame
+            cv2.circle(
+                frame,
+                (x, y),
+                5,
+                (0, 0, 255),
+                -1
+            )
+
+        # Display command
         cv2.putText(
             frame,
             f"CMD: {command}",
@@ -49,7 +71,7 @@ def generate_frames():
             2
         )
 
-        # Convert frame to jpg
+        # Encode frame
         _, buffer = cv2.imencode('.jpg', frame)
 
         frame_bytes = buffer.tobytes()
@@ -61,22 +83,29 @@ def generate_frames():
             b'\r\n'
         )
 
+
 @app.route('/')
 
 def index():
 
     return """
     <html>
+
         <head>
             <title>Pothole Detection Car</title>
         </head>
 
         <body>
+
             <h1>Pothole Detection Stream</h1>
-            <img src="/video">
+
+            <img src="/video" width="640">
+
         </body>
+
     </html>
     """
+
 
 @app.route('/video')
 
@@ -87,6 +116,13 @@ def video():
         mimetype='multipart/x-mixed-replace; boundary=frame'
     )
 
+
 if __name__ == "__main__":
 
-    app.run(host='0.0.0.0', port=5000)
+    app.run(
+        host='0.0.0.0',
+        port=5000,
+        threaded=True,
+        debug=False,
+        use_reloader=False
+    )
