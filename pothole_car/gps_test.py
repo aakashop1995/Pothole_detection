@@ -29,6 +29,7 @@ def get_gps_location():
     while True:
 
         line = gps.readline().decode('utf-8', errors='ignore')
+        print(line)
 
         if "$GPGGA" in line or "$GPRMC" in line:
 
