@@ -1,5 +1,6 @@
 import cv2
 from flask import Flask, Response
+from picamera2 import Picamera2
 
 from detector import detect_pothole
 from navigation import decide_action
@@ -10,46 +11,42 @@ app = Flask(__name__)
 FRAME_WIDTH = 320
 FRAME_HEIGHT = 240
 
-# Camera setup
-cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
+# Picamera2 setup
+picam2 = Picamera2()
 
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
+config = picam2.create_preview_configuration(
+    main={"size": (FRAME_WIDTH, FRAME_HEIGHT)}
+)
 
-if not cap.isOpened():
+picam2.configure(config)
 
-    print("Camera failed to open")
+picam2.start()
 
-else:
-
-    print("Camera started")
+print("Camera started")
 
 
 def generate_frames():
 
     while True:
 
-        ret, frame = cap.read()
+        # Capture frame
+        frame = picam2.capture_array()
 
-        if not ret:
-
-            print("Failed to read frame")
-            continue
-
-        frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
+        # Convert RGB to BGR
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
         # Detect pothole
         detected, x, y = detect_pothole(frame)
 
-        # Navigation decision
+        # Navigation logic
         command = decide_action(detected, x, y)
 
-        # Send command to Arduino
+        # Send to Arduino
         send_command(command)
 
         print("Command:", command)
 
-        # Draw pothole point
+        # Draw pothole center
         if detected:
 
             cv2.circle(
@@ -71,7 +68,7 @@ def generate_frames():
             2
         )
 
-        # Encode frame
+        # Convert to jpg
         _, buffer = cv2.imencode('.jpg', frame)
 
         frame_bytes = buffer.tobytes()
