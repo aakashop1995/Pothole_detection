@@ -1,43 +1,56 @@
 import serial
 import time
 
-PORT = "/dev/ttyS0"   # CHANGE THIS if needed
+PORT = "/dev/ttyS0"
 
-try:
-    gps = serial.Serial(PORT, baudrate=9600, timeout=1)
-    time.sleep(2)
-    print("GPS connected on", PORT)
+gps = serial.Serial(PORT, baudrate=9600, timeout=1)
+time.sleep(2)
 
-except Exception as e:
-    gps = None
-    print("GPS not connected:", e)
+print("GPS started on", PORT)
+
+
+def convert_to_degrees(raw, is_lon=False):
+
+    if not raw or len(raw) < 6:
+        return None
+
+    if is_lon:
+        degrees = float(raw[:3])   # longitude = 3 digits
+        minutes = float(raw[3:])
+    else:
+        degrees = float(raw[:2])   # latitude = 2 digits
+        minutes = float(raw[2:])
+
+    return degrees + (minutes / 60)
 
 
 def get_gps_location():
 
-    if gps is None:
-        return None, None
-
     while True:
 
-        try:
-            line = gps.readline().decode('utf-8', errors='ignore')
+        line = gps.readline().decode('utf-8', errors='ignore')
 
-            if line.startswith("$GPGGA"):
+        if "$GPGGA" in line or "$GPRMC" in line:
 
-                parts = line.split(",")
+            parts = line.split(",")
 
-                if parts[2] and parts[4]:
+            try:
+                lat_raw = parts[2]
+                lat_dir = parts[3]
+                lon_raw = parts[4]
+                lon_dir = parts[5]
 
-                    lat = float(parts[2][:2]) + float(parts[2][2:]) / 60
-                    lon = float(parts[4][:2]) + float(parts[4][2:]) / 60
+                if lat_raw and lon_raw:
 
-                    if parts[3] == "S":
+                    lat = convert_to_degrees(lat_raw, is_lon=False)
+                    lon = convert_to_degrees(lon_raw, is_lon=True)
+
+                    if lat_dir == "S":
                         lat = -lat
-                    if parts[5] == "W":
+                    if lon_dir == "W":
                         lon = -lon
 
                     return lat, lon
 
-        except:
-            continue
+            except:
+                continue
