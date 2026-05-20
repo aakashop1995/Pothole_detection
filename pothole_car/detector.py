@@ -1,6 +1,6 @@
 from ultralytics import YOLO
 
-model = YOLO("home/jayesh/Pothole_detection/model/best.pt")
+model = YOLO("/home/jayesh/Pothole_detection/model/best.pt")
 
 FRAME_HEIGHT = 240
 
