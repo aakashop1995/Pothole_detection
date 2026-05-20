@@ -95,12 +95,12 @@ def capture_loop():
                     (0, 0, 255),
                     -1
                 )
-                 print("Pothole detected")
+                print("Pothole detected")
 
-                 # get GPS only when needed
-                 lat, lon = get_gps_location()
+                # get GPS only when needed
+                lat, lon = get_gps_location()
 
-                 print("GPS:", lat, lon)
+                print("GPS:", lat, lon)
 
             # -----------------------------
             # Display command
