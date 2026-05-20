@@ -7,7 +7,7 @@ gps = None
 # Connect GPS module
 # -----------------------------
 try:
-    gps = serial.Serial("/dev/tty50", baudrate=9600, timeout=1)
+    gps = serial.Serial("/dev/ttyS0", baudrate=9600, timeout=1)
     time.sleep(2)
     print("GPS connected")
 
